@@ -82,13 +82,24 @@ class Homesick < Thor
   desc "commit CASTLE", "Commit the specified castle's changes"
   def commit(name)
     commit_castle name
+  end
 
+  desc "switch CASTLE BRANCH", "Switch the specified castle to the specified branch"
+  method_option :list, :default => false, :aliases => "-l", :desc => "List available branches"
+  def switch(castle, branch = nil)
+    check_castle_existance(castle, "switch")
+    inside castle_dir(castle) do
+      if options[:list] || branch == nil
+        git_branches
+      else
+        git_checkout branch
+      end
+    end
   end
 
   desc "push CASTLE", "Push the specified castle"
   def push(name)
     push_castle name
-
   end
 
   desc "symlink CASTLE", "Symlinks all dotfiles from the specified castle"

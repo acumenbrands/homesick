@@ -74,6 +74,60 @@ class Homesick
       system "git add #{file}" unless options[:pretend]
     end
 
+    def git_status
+      `git status --porcelain`
+    end
+
+    def git_branch_clean?
+      status = git_status
+      if not status.empty?
+        status.each_line do |change|
+          kind, file_name = change.split(/\s/);
+          verb = { 'M' => 'modified', 'D' => 'deleted', '??' => 'unknown' }[kind]
+          say_status "file #{verb}", file_name, :red unless options[:quiet]
+        end
+        false
+      else
+        true 
+      end
+    end
+
+    def git_branches
+      say `git branch -a`
+    end
+
+    def git_show_ref(branch)
+      if system("git show-ref --verify --quiet refs/heads/#{branch}")
+        :local
+      elsif system("git show-ref --verify --quiet refs/remotes/origin/#{branch}")
+        :remote
+      else
+        nil
+      end
+    end
+
+    def git_checkout(branch)
+      say_status "git checkout", branch, :green unless options[:quiet]
+      # throw a fit if there are uncommited changes in the local
+      if git_branch_clean?
+        #check for a remote tracking branch
+        case git_show_ref(branch)
+          when :local
+            say_status "switched to", branch, :green unless options[:quiet]
+            system "git checkout #{branch}" unless options[:pretend]
+          when :remote
+            say_status "setup tracking for", branch, :green unless options[:quiet]
+            system "git checkout -t origin/#{branch}" unless options[:pretend]
+          else
+            say_status "created new branch", branch, :green unless options[:quiet]
+            system "git checkout -b #{branch}" unless options[:pretend]
+            system "git branch -u origin/#{branch}"
+        end
+      else
+        say_status "working branch is dirty", '', :red unless options[:quiet]
+      end
+    end
+
     def mv(source, destination, config = {})
       source = Pathname.new(source)
       destination = Pathname.new(destination + source.basename)

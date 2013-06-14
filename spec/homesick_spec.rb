@@ -214,6 +214,79 @@ describe "homesick" do
 
   end
 
+  describe "switch" do
+    let!(:castle) { given_castle('castle_repo') }
+
+    it "lists branches when no branch is given" do
+      homesick.should_receive(:say).with(an_instance_of(String))
+      homesick.switch('castle_repo')
+    end
+
+    it "does git_checkout when a branch is given" do
+      homesick.should_receive(:git_checkout).with('branch_name')
+      homesick.switch('castle_repo','branch_name')
+    end
+
+    context "git commands" do
+
+      describe '.git_checkout' do
+
+        context 'when castle is dirty' do
+          before do
+            homesick.stub(:git_branch_clean?) { false }
+          end
+
+          it 'prints working dir dirty' do
+            homesick.should_receive(:say_status).with('working branch is dirty', '', :red)
+            homesick.switch('castle_repo', 'da_branch')
+          end
+        end
+
+        context 'when castle is clean' do
+          context 'local branch' do
+            before do
+              homesick.stub(:git_branch_clean?) { true }
+              homesick.stub(:git_show_ref) { :local }
+            end
+
+            it 'switches' do
+              homesick.should_receive('system').with('git checkout da_branch')
+              homesick.switch('castle_repo','da_branch')
+            end
+          end
+        end
+
+      end
+
+      describe '.git_branch_clean?' do
+        context 'failing' do
+          before do
+            homesick.stub(:git_status) do
+              'M file'
+            end
+          end
+
+          it 'prints changed files' do
+            homesick.should_receive(:say_status).with("file modified", "file", :red)
+            homesick.switch('castle_repo','a_branch')
+          end
+        end
+
+        context 'success' do
+          before do
+            homesick.stub(:git_status) { '' }
+          end
+
+          it 'prints changed files' do
+            homesick.should_not_receive(:say_status).with(anything, anything, :red)
+            homesick.switch('castle_repo','a_branch')
+          end
+        end
+
+      end
+    end
+  end
+
   describe "track" do
     it "should move the tracked file into the castle" do
       castle = given_castle('castle_repo')
