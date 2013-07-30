@@ -230,7 +230,6 @@ describe "homesick" do
     context "git commands" do
 
       describe '.git_checkout' do
-
         context 'when castle is dirty' do
           before do
             homesick.stub(:git_branch_clean?) { false }
@@ -243,46 +242,71 @@ describe "homesick" do
         end
 
         context 'when castle is clean' do
-          context 'local branch' do
+          context 'there is a local branch' do
             before do
               homesick.stub(:git_branch_clean?) { true }
               homesick.stub(:git_show_ref) { :local }
             end
 
-            it 'switches' do
+            it 'switches to that branch' do
               homesick.should_receive('system').with('git checkout da_branch')
               homesick.switch('castle_repo','da_branch')
             end
           end
         end
 
+        context 'there is a remote branch' do
+          before do
+            homesick.stub(:git_branch_clean?) { true }
+            homesick.stub(:git_show_ref) { :remote }
+          end
+
+          it 'sets it up with tracking and switches' do
+            homesick.should_receive('system').with('git checkout -t origin/da_branch')
+            homesick.switch('castle_repo','da_branch')
+          end
+        end
       end
 
-      describe '.git_branch_clean?' do
-        context 'failing' do
-          before do
-            homesick.stub(:git_status) do
-              'M file'
-            end
-          end
-
-          it 'prints changed files' do
-            homesick.should_receive(:say_status).with("file modified", "file", :red)
-            homesick.switch('castle_repo','a_branch')
-          end
+      context 'there is no branch' do
+        before do
+          homesick.stub(:git_branch_clean?) { true }
+          homesick.stub(:git_show_ref) { nil }
         end
 
-        context 'success' do
-          before do
-            homesick.stub(:git_status) { '' }
-          end
-
-          it 'prints changed files' do
-            homesick.should_not_receive(:say_status).with(anything, anything, :red)
-            homesick.switch('castle_repo','a_branch')
-          end
+        it 'creates a new branch with remote tracking and switches' do
+          homesick.should_receive('system').with('git checkout -b da_branch')
+          homesick.should_receive('system').with('git branch -u origin/da_branch')
+          homesick.switch('castle_repo','da_branch')
         end
+      end
+    end
+  end
 
+  describe '.git_branch_clean?', focus: true do
+    context 'failing' do
+      before do
+        homesick.stub(:git_status) do
+          'M file'
+        end
+      end
+
+      it 'prints changed files' do
+        given_castle('castle_repo')
+        homesick.should_receive(:say_status).with("file modified", "file", :red)
+        homesick.switch('castle_repo','a_branch')
+      end
+    end
+
+    context 'success' do
+      before do
+        homesick.stub(:git_status) { '' }
+      end
+
+      it 'prints changed files' do
+        given_castle('castle_repo')
+        homesick.should_not_receive(:say_status).with(anything, anything, :red)
+        homesick.switch('castle_repo','a_branch')
       end
     end
   end
